@@ -1,0 +1,14 @@
+# Arquivos de estado e cache do Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+
+# Arquivos de variáveis e segredos
+*.tfvars
+*.pem
+*.key
+
+# Logs e arquivos temporários do sistema
+*.log
+.DS_Store
