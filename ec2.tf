@@ -39,7 +39,7 @@ resource "aws_security_group" "server_sg" {
     from_port   = 500
     to_port     = 500
     protocol    = "udp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["${var.company_public_ip}/32"]
   }
 
   # 4. VPN IPSec - NAT Traversal (Porta UDP 4500)
@@ -48,7 +48,7 @@ resource "aws_security_group" "server_sg" {
     from_port   = 4500
     to_port     = 4500
     protocol    = "udp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["${var.company_public_ip}/32"]
   }
 
   # 5. VPN IPSec - Protocolo ESP (Protocolo IP 50)
@@ -57,7 +57,7 @@ resource "aws_security_group" "server_sg" {
     from_port   = 0
     to_port     = 0
     protocol    = "50"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["${var.company_public_ip}/32"]
   }
 
   # Tráfego de saída totalmente liberado
@@ -106,7 +106,7 @@ resource "aws_instance" "server" {
                   keyexchange=ikev2
                   left=%defaultroute
                   leftsubnet=10.0.1.0/24
-                  right=%any
+                  right=${var.company_public_ip}
                   rightsubnet=192.168.10.0/24,192.168.20.0/24
                   ike=des-sha256-modp2048!
                   esp=des-sha256!

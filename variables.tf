@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "company_public_ip" {
   type        = string
   description = "IP Público estático do roteador/firewall da empresa"
-  default     = "200.200.200.200" # <-- ALTERE para o IP público da empresa
+  default     = "186.251.155.232" # <-- ALTERE para o IP público da empresa
 }
 
 # Subnet CIDR da empresa (Depto de TI)
