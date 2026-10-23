@@ -6,20 +6,34 @@ variable "aws_region" {
 
 variable "company_public_ip" {
   type        = string
-  description = "IP Público estático do roteador/firewall da empresa"
-  default     = "186.251.155.232" # <-- ALTERE para o IP público da empresa
+  description = "IP Público de saída da rede do SENAI/Firewall"
+  default     = "186.251.155.232" # <-- CONFIRME o IP público atual do laboratório
 }
 
-# Subnet CIDR da empresa (Depto de TI)
-variable "ti_dept_cidr" {
+# VLAN 10 - TI (Segue o objeto VLAN10_TI do FortiGate)
+variable "vlan10_ti_cidr" {
   type        = string
-  description = "Bloco de rede (CIDR) da VLAN do Depto de TI"
-  default     = "192.168.10.0/24" # <-- ALTERE para o IP da rede de TI
+  description = "Bloco de rede (CIDR) da VLAN_10_TI"
+  default     = "192.168.10.0/24"
 }
 
-# Subnet CIDR da empresa (Rede IoT)
-variable "iot_dept_cidr" {
+# VLAN 20 - Colaboradores (Segue o objeto VLAN20_Colaboradores do FortiGate)
+variable "vlan20_colab_cidr" {
   type        = string
-  description = "Bloco de rede (CIDR) da VLAN de IoT"
-  default     = "192.168.20.0/24" # <-- ALTERE para o IP da rede IoT
+  description = "Bloco de rede (CIDR) da VLAN_20_Colab"
+  default     = "192.168.20.0/24"
+}
+
+# VLAN 30 - DMZ (Segue o objeto VLAN30_DMZ do FortiGate)
+variable "vlan30_dmz_cidr" {
+  type        = string
+  description = "Bloco de rede (CIDR) da VLAN_30_DMZ"
+  default     = "192.168.30.0/24"
+}
+
+# VLAN 40 - IoT (Segue o objeto VLAN40_IoT do FortiGate)
+variable "vlan40_iot_cidr" {
+  type        = string
+  description = "Bloco de rede (CIDR) da VLAN_40_IoT"
+  default     = "192.168.40.0/24"
 }

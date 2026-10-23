@@ -1,14 +1,19 @@
-# Arquivos de estado e cache do Terraform
+# Diretorio de inicializacao local do Terraform
 .terraform/
-.terraform.lock.hcl
+
+# Ficheiros de estado do Terraform (contêm dados sensiveis e IPs)
 *.tfstate
 *.tfstate.backup
 
-# Arquivos de variáveis e segredos
+# Ficheiros de variaveis e credenciais/chaves privadas
 *.tfvars
 *.pem
 *.key
 
-# Logs e arquivos temporários do sistema
+# Ficheiros executaveis binarios (ex: instaladores baixados)
+*.exe
+
+# Logs e ficheiros temporarios do sistema operativo
 *.log
 .DS_Store
+Thumbs.db

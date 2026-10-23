@@ -23,20 +23,35 @@ resource "aws_vpc" "main" {
   }
 }
 
-# 2. Subnet para o Servidor
+# 2. Internet Gateway (Necessário para a EC2 baixar pacotes e fechar a VPN)
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "IGW-TCC-Empresa"
+  }
+}
+
+# 3. Subnet onde fica a EC2 (Servidor + Gateway VPN StrongSwan)
 resource "aws_subnet" "private" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.1.0/24"
-  availability_zone = "${var.aws_region}a"
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "${var.aws_region}a"
+  map_public_ip_on_launch = true
 
   tags = {
     Name = "Subnet-Servidor-Privado"
   }
 }
 
-# 3. Tabela de Roteamento
+# 4. Tabela de Roteamento apontando saída externa para o IGW
 resource "aws_route_table" "private_rt" {
   vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
 
   tags = {
     Name = "RT-Privada"
