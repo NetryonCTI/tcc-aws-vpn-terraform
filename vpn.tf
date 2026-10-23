@@ -25,8 +25,8 @@ resource "aws_vpn_connection" "fortigate_vpn" {
   type                = "ipsec.1"
   static_routes_only  = true
 
-  tunnel1_preshared_key           = var.vpn_psk
-  tunnel1_ike_versions            = ["ikev1", "ikev2"]
+  tunnel1_preshared_key                = var.vpn_psk
+  tunnel1_ike_versions                 = ["ikev1", "ikev2"]
   tunnel1_phase1_encryption_algorithms = ["AES256"]
   tunnel1_phase1_integrity_algorithms  = ["SHA2-256"]
   tunnel1_phase1_dh_group_numbers      = [14]
