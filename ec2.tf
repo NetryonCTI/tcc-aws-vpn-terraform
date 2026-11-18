@@ -35,12 +35,7 @@ resource "aws_security_group" "server_sg" {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = [
-      var.vlan10_ti_cidr,
-      var.vlan20_colab_cidr,
-      var.vlan30_dmz_cidr,
-      var.vlan40_iot_cidr
-    ]
+    cidr_blocks = [var.vlan40_iot_cidr]
   }
 
   # 3. Ping / ICMP -> Liberado para as VLANs internas do FortiGate
@@ -150,38 +145,66 @@ resource "aws_instance" "server" {
               systemctl restart strongswan-starter
               ipsec restart
 
-              # 6. Cria o Dashboard de Telemetria Industrial/IoT na porta 8080
+              # 6. Cria o Dashboard Dinamico de Telemetria Industrial/IoT na porta 8080
               mkdir -p /opt/iot
-              cat << 'HTML' > /opt/iot/index.html
-              <!DOCTYPE html>
+              cat << 'PYEOF' > /opt/iot/server.py
+              from http.server import BaseHTTPRequestHandler, HTTPServer
+
+              HTML_TEMPLATE = """<!DOCTYPE html>
               <html lang="pt-BR">
               <head>
                   <meta charset="UTF-8">
                   <title>Netryon OT/IoT Cloud Collector - AWS</title>
                   <style>
-                      body { font-family: Arial, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 30px; }
-                      .header { border-bottom: 2px solid #22c55e; padding-bottom: 15px; margin-bottom: 25px; }
-                      .badge { background: #16a34a; color: white; padding: 5px 12px; border-radius: 6px; font-size: 14px; }
-                      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-                      .card { background: #1e293b; padding: 20px; border-radius: 10px; border-left: 4px solid #38bdf8; }
-                      .card h3 { margin-top: 0; color: #38bdf8; }
+                      body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 30px; }
+                      .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #22c55e; padding-bottom: 15px; margin-bottom: 25px; flex-wrap: wrap; gap: 10px; }
+                      .badge { background: #16a34a; color: white; padding: 6px 14px; border-radius: 6px; font-size: 14px; font-weight: bold; }
+                      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 20px; margin-bottom: 25px; }
+                      .card { background: #1e293b; padding: 20px; border-radius: 10px; border-left: 4px solid #38bdf8; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+                      .card h3 { margin-top: 0; color: #94a3b8; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+                      .card p { margin: 6px 0; font-size: 14px; }
+                      .metric-val { font-size: 28px; font-weight: bold; color: #38bdf8; margin-top: 8px; }
+                      .audit-box { background: #1e293b; border: 1px solid #334155; border-left: 4px solid #22c55e; padding: 18px 20px; border-radius: 8px; }
+                      code { background: #0f172a; color: #fbbf24; padding: 4px 10px; border-radius: 4px; font-size: 16px; font-weight: bold; }
                   </style>
               </head>
               <body>
                   <div class="header">
-                      <h1>Netryon CTI OT — Coletor Cloud AWS (VPC 10.0.1.0/24)</h1>
-                      <span class="badge">Túnel IPsec IKEv2 Ativo | AES-256 / SHA-256 / DH 14</span>
+                      <div>
+                          <h1 style="margin:0;">Netryon CTI OT — Coletor Cloud AWS (VPC 10.0.1.0/24)</h1>
+                          <p style="margin:5px 0 0 0; color:#94a3b8;">Gateway Privado: <strong>10.0.1.10</strong> | StrongSwan IKEv2</p>
+                      </div>
+                      <span class="badge">● Túnel IPsec Ativo | AES-256 / SHA-256 / DH 14</span>
                   </div>
+
+                  <div class="grid">
+                      <div class="card">
+                          <h3>Temperatura Linha OT-01</h3>
+                          <div class="metric-val" id="temp">24.8 °C</div>
+                          <p style="color:#22c55e;">● Operação Normal</p>
+                      </div>
+                      <div class="card">
+                          <h3>Pressão Sistema Industrial</h3>
+                          <div class="metric-val" id="press">4.25 bar</div>
+                          <p style="color:#22c55e;">● Estável</p>
+                      </div>
+                      <div class="card">
+                          <h3>Pacotes Telemetria (IoT)</h3>
+                          <div class="metric-val" id="pkts">1.842</div>
+                          <p style="color:#94a3b8;">Origem: VLAN 40 (192.168.40.0/24)</p>
+                      </div>
+                      <div class="card">
+                          <h3>Latência Túnel VPN</h3>
+                          <div class="metric-val" id="lat">17 ms</div>
+                          <p style="color:#94a3b8;">Inspeção IPS FortiGate: Ativa</p>
+                      </div>
+                  </div>
+
                   <div class="grid">
                       <div class="card">
                           <h3>Gateway Cloud AWS</h3>
                           <p><strong>IP Privado:</strong> 10.0.1.10</p>
-                          <p><strong>Serviço:</strong> StrongSwan IKEv2</p>
-                      </div>
-                      <div class="card">
-                          <h3>Telemetria VLAN 40 (IoT)</h3>
-                          <p><strong>Sub-rede:</strong> 192.168.40.0/24</p>
-                          <p><strong>Inspeção IPS FortiGate:</strong> Ativa</p>
+                          <p><strong>Failover:</strong> Dinâmico (right=%any + DPD)</p>
                       </div>
                       <div class="card">
                           <h3>Segmentação Zero Trust</h3>
@@ -189,11 +212,58 @@ resource "aws_instance" "server" {
                           <p><strong>HTTP (Porta 8080):</strong> VLANs Autorizadas</p>
                       </div>
                   </div>
+
+                  <div class="audit-box">
+                      <h3 style="margin:0 0 10px 0; color:#22c55e;">Auditoria de Conexão Zero Trust em Tempo Real</h3>
+                      <p style="margin:5px 0;">IP de Origem Detectado pelo Servidor AWS: <code>CLIENT_IP_PLACEHOLDER</code></p>
+                      <p style="margin:5px 0; color:#94a3b8; font-size:13px;">Pacote roteado via túnel IPsec Site-to-Site e autorizado pelo Security Group (sg_servidor_tcc).</p>
+                  </div>
+
+                  <script>
+                      let packets = 1842;
+                      setInterval(() => {
+                          document.getElementById('temp').innerText = (24.2 + Math.random() * 1.4).toFixed(1) + ' °C';
+                          document.getElementById('press').innerText = (4.15 + Math.random() * 0.25).toFixed(2) + ' bar';
+                          packets += Math.floor(Math.random() * 6) + 2;
+                          document.getElementById('pkts').innerText = packets.toLocaleString('pt-BR');
+                          document.getElementById('lat').innerText = Math.floor(14 + Math.random() * 8) + ' ms';
+                      }, 2500);
+                  </script>
               </body>
               </html>
-              HTML
+              """
 
-              nohup python3 -m http.server 8080 --directory /opt/iot > /var/log/iot_http.log 2>&1 &
+              class TelemetryHandler(BaseHTTPRequestHandler):
+                  def do_GET(self):
+                      client_ip = self.client_address[0]
+                      page = HTML_TEMPLATE.replace("CLIENT_IP_PLACEHOLDER", client_ip)
+                      self.send_response(200)
+                      self.send_header("Content-type", "text/html; charset=utf-8")
+                      self.end_headers()
+                      self.wfile.write(page.encode("utf-8"))
+
+              if __name__ == "__main__":
+                  server = HTTPServer(("0.0.0.0", 8080), TelemetryHandler)
+                  server.serve_forever()
+              PYEOF
+
+              cat << 'SVCEOF' > /etc/systemd/system/iot-dashboard.service
+              [Unit]
+              Description=Netryon IoT Telemetry Dashboard
+              After=network.target
+
+              [Service]
+              ExecStart=/usr/bin/python3 /opt/iot/server.py
+              Restart=always
+              User=root
+
+              [Install]
+              WantedBy=multi-user.target
+              SVCEOF
+
+              systemctl daemon-reload
+              systemctl enable iot-dashboard
+              systemctl start iot-dashboard
               EOF
 
   tags = {
