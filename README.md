@@ -53,3 +53,18 @@ Devido às especificidades de licenciamento do ambiente de borda FortiGate, os p
    ```bash
    git clone [https://github.com/NetryonCTI/tcc-aws-vpn-terraform.git](https://github.com/NetryonCTI/tcc-aws-vpn-terraform.git)
    cd tcc-aws-vpn-terraform
+
+## Observabilidade e Coletor IoT
+
+### 1. Dashboard de Telemetria OT/IoT (Porta 8080)
+- **Aplicação:** Servidor HTTP dinâmico em Python (`systemd` service `iot-dashboard`) provisionado via `user_data`.
+- **Funcionalidades:** Exibe métricas industriais simuladas em tempo real e realiza a auditoria do **IP de origem da requisição**, comprovando que o tráfego foi roteado pelo túnel VPN IPsec a partir da **VLAN 40 (IoT)**.
+- **Controle de Acesso (Zero Trust):** Restrito exclusivamente à sub-rede `192.168.40.0/24` via Security Group (`sg_servidor_tcc`).
+
+### 2. Monitorização via Amazon CloudWatch (`monitoring.tf`)
+Toda a camada de observabilidade é provisionada como código (IaC):
+- **Dashboard (`TCC-Netryon-AWS-VPN`):**
+  - Tráfego de rede em Bytes (`NetworkIn` / `NetworkOut`) e Pacotes (`NetworkPacketsIn` / `NetworkPacketsOut`).
+  - Utilização de CPU (`CPUUtilization`) e verificação de integridade (`StatusCheckFailed`).
+  - Resumo documental da arquitetura em Markdown integrado ao painel.
+- **Alarme (`Saude-Gateway-VPN-AWS`):** Monitora falhas de integridade da instância EC2 (`StatusCheckFailed > 0`).

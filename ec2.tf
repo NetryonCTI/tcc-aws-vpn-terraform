@@ -101,14 +101,15 @@ resource "aws_instance" "server" {
   associate_public_ip_address = true
   source_dest_check           = false
   user_data_replace_on_change = true
+  iam_instance_profile        = "LabInstanceProfile"
 
   user_data = <<-EOF
               #!/bin/bash
               export DEBIAN_FRONTEND=noninteractive
 
-              # 1. Instala o StrongSwan e Python3 rapidamente
+              # 1. Instala o StrongSwan, Python3 e AWS CLI
               apt-get update -y
-              apt-get install -y strongswan python3
+              apt-get install -y strongswan python3 awscli
 
               # 2. Ativa o encaminhamento de pacotes (IP Forwarding) no Kernel
               sysctl -w net.ipv4.ip_forward=1
@@ -209,7 +210,7 @@ resource "aws_instance" "server" {
                       <div class="card">
                           <h3>Segmentação Zero Trust</h3>
                           <p><strong>SSH (Porta 22):</strong> Exclusivo VLAN 10 (TI)</p>
-                          <p><strong>HTTP (Porta 8080):</strong> VLANs Autorizadas</p>
+                          <p><strong>HTTP (Porta 8080):</strong> Exclusivo VLAN 40 (IoT)</p>
                       </div>
                   </div>
 
@@ -264,6 +265,51 @@ resource "aws_instance" "server" {
               systemctl daemon-reload
               systemctl enable iot-dashboard
               systemctl start iot-dashboard
+
+              # 7. Monitor do Tunel IPsec -> Envia metrica UP (1) / DOWN (0) ao CloudWatch
+              cat << 'MONEOF' > /opt/iot/vpn_monitor.sh
+              #!/bin/bash
+              TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+              INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+
+              while true; do
+                  if ipsec status | grep -q "ESTABLISHED"; then
+                      STATUS=1
+                  else
+                      STATUS=0
+                  fi
+
+                  aws cloudwatch put-metric-data \
+                      --region us-east-1 \
+                      --namespace "TCC/VPN" \
+                      --metric-name "TunnelStatus" \
+                      --dimensions InstanceId="$INSTANCE_ID" \
+                      --value "$STATUS" \
+                      --unit None
+
+                  sleep 30
+              done
+              MONEOF
+
+              chmod +x /opt/iot/vpn_monitor.sh
+
+              cat << 'VPNMONSVC' > /etc/systemd/system/vpn-cloudwatch-monitor.service
+              [Unit]
+              Description=Envia status do tunel IPsec StrongSwan para o CloudWatch
+              After=strongswan-starter.service
+
+              [Service]
+              ExecStart=/bin/bash /opt/iot/vpn_monitor.sh
+              Restart=always
+              User=root
+
+              [Install]
+              WantedBy=multi-user.target
+              VPNMONSVC
+
+              systemctl daemon-reload
+              systemctl enable vpn-cloudwatch-monitor
+              systemctl start vpn-cloudwatch-monitor
               EOF
 
   tags = {
