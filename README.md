@@ -58,13 +58,31 @@ Devido às especificidades de licenciamento do ambiente de borda FortiGate, os p
 
 ### 1. Dashboard de Telemetria OT/IoT (Porta 8080)
 - **Aplicação:** Servidor HTTP dinâmico em Python (`systemd` service `iot-dashboard`) provisionado via `user_data`.
-- **Funcionalidades:** Exibe métricas industriais simuladas em tempo real e realiza a auditoria do **IP de origem da requisição**, comprovando que o tráfego foi roteado pelo túnel VPN IPsec a partir da **VLAN 40 (IoT)**.
+- **Funcionalidades:** Exibe métricas industriais simuladas em tempo real, o estado do túnel VPN e realiza a auditoria do **IP de origem da requisição**, comprovando que o tráfego foi roteado pelo túnel VPN IPsec a partir da **VLAN 40 (IoT)**.
 - **Controle de Acesso (Zero Trust):** Restrito exclusivamente à sub-rede `192.168.40.0/24` via Security Group (`sg_servidor_tcc`).
 
 ### 2. Monitorização via Amazon CloudWatch (`monitoring.tf`)
 Toda a camada de observabilidade é provisionada como código (IaC):
 - **Dashboard (`TCC-Netryon-AWS-VPN`):**
+  - **Estado do Túnel IPsec (`TunnelStatus`):** Métrica customizada enviada a cada 30 segundos pela instância EC2 (`1` = Túnel Ativo / `0` = Túnel Inativo).
   - Tráfego de rede em Bytes (`NetworkIn` / `NetworkOut`) e Pacotes (`NetworkPacketsIn` / `NetworkPacketsOut`).
   - Utilização de CPU (`CPUUtilization`) e verificação de integridade (`StatusCheckFailed`).
   - Resumo documental da arquitetura em Markdown integrado ao painel.
-- **Alarme (`Saude-Gateway-VPN-AWS`):** Monitora falhas de integridade da instância EC2 (`StatusCheckFailed > 0`).
+- **Alarmes Proativos:**
+  - **`Saude-Gateway-VPN-AWS`:** Monitora falhas de integridade da instância EC2 (`StatusCheckFailed > 0`).
+  - **`Status-Tunel-IPsec-AWS`:** Dispara alerta imediato caso o túnel IPsec com o FortiGate fique inativo (`TunnelStatus < 1`).
+
+### 3. Auditoria de Perímetro Zero Trust (VPC Flow Logs + S3)
+- **Captura de Tráfego (`aws_flow_log`):** Regista todos os fluxos de rede (`ALL`) da `VPC-TCC-Empresa` (`10.0.1.0/24`) com agregação de 60 segundos.
+- **Armazenamento (`Amazon S3`):** Os logs são exportados continuamente para o bucket `tcc-netryon-flow-logs-20261118125612525800000001` (mantido fora do estado do Terraform para compatibilidade com as restrições de SCP/IAM do **AWS Academy**).
+- **Evidências Auditadas:** Comprova na prática a atuação *stateful* do Security Group, registando `ACCEPT` para sessões autorizadas e `REJECT` para tentativas de acesso não autorizadas na interface `10.0.1.10`.
+
+---
+
+## Operação e Relatório Visual (AWS CloudShell)
+
+Para gerar o painel gráfico de auditoria (`ACCEPT` vs `REJECT`) a partir dos logs armazenados no S3 durante testes ou na apresentação:
+
+1. Abra o **AWS CloudShell** na região `us-east-1` e execute o atalho:
+   ```bash
+   ./atualizar.sh
